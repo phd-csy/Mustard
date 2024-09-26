@@ -40,7 +40,7 @@ auto MuonBiasedDecayChannelWithSpin::DecayIt(G4double) -> G4DecayProducts* {
             const auto pileupPositron{(*pileupProducts)[0]};
 
             if (pileupPositron->GetKineticEnergy() > fEnergyCut) {
-                pileupPositron->SetMomentum(-positron->GetMomentum());
+                pileupPositron->SetMomentumDirection(-positron->GetMomentumDirection());
                 products->PushProducts(pileupPositron);
                 return products;
             }
