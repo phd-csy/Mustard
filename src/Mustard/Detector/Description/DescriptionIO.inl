@@ -118,7 +118,7 @@ auto DescriptionIO::Import(const std::ranges::range auto& yamlText) -> void
 
     const auto yamlFile{std::fopen(yamlPath.generic_string().c_str(), "w")};
     if (yamlFile == nullptr) {
-        throw std::runtime_error("Mustard::Detector::Description::DescriptionIO::Import: Cannot open temp yaml file");
+        throw std::runtime_error(PrettyException("Cannot open temp yaml file"));
     }
     for (auto&& line : yamlText) {
         fmt::println(yamlFile, "{}", line);
@@ -172,7 +172,7 @@ auto DescriptionIO::ExportImpl(const std::filesystem::path& yamlFile, const std:
         yamlEmitter << geomYaml
                     << YAML::Newline;
     } catch (const InvalidFile&) {
-        Env::PrintLnError("Mustard::Detector::Description::DescriptionIO::ExportImpl: Cannot open yaml file, export failed");
+        Env::PrintPrettyError("Cannot open yaml file, export failed");
     }
 }
 

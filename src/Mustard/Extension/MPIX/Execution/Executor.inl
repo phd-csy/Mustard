@@ -53,7 +53,7 @@ template<std::integral T>
 template<template<typename> typename AScheduler>
     requires std::derived_from<AScheduler<T>, Scheduler<T>>
 auto Executor<T>::SwitchScheduler() -> void {
-    if (fExecuting) { throw std::logic_error{"switch scheduler kernel during processing"}; }
+    if (fExecuting) { throw std::logic_error{PrettyException("Try switching scheduler kernel during processing")}; }
     auto task{std::move(fScheduler->fTask)};
     fScheduler = std::make_unique_for_overwrite<AScheduler<T>>();
     fScheduler->fTask = std::move(task);
@@ -63,10 +63,10 @@ template<std::integral T>
     requires(Concept::MPIPredefined<T> and sizeof(T) >= sizeof(short))
 auto Executor<T>::Execute(typename Scheduler<T>::Task task, std::invocable<T> auto&& F) -> T {
     // reset
-    if (task.last < task.first) { throw std::invalid_argument{"task.last < task.first"}; }
+    if (task.last < task.first) { throw std::invalid_argument{PrettyException("task.last < task.first")}; }
     if (task.last == task.first) { return 0; }
     if (task.last - task.first < static_cast<T>(Env::MPIEnv::Instance().CommWorldSize())) {
-        throw std::runtime_error{"number of tasks < size of MPI_COMM_WORLD"};
+        throw std::runtime_error{PrettyException("Number of tasks < size of MPI_COMM_WORLD")};
     }
     fScheduler->fTask = task;
     fScheduler->Reset();
@@ -160,7 +160,7 @@ auto Executor<T>::PrintExecutionSummary() const -> void {
     const auto& mpiEnv{Env::MPIEnv::Instance()};
     if (not mpiEnv.OnCommWorldMaster()) { return; }
     if (fExecuting) {
-        Env::PrintLnWarning("Execution summary not available for now.");
+        Env::PrintPrettyWarning("Execution summary not available for now");
         return;
     }
     Env::Print("+------------------+--------------> Summary <-------------+-------------------+\n"
@@ -184,7 +184,7 @@ auto Executor<T>::PreLoopReport() const -> void {
     Env::Print("+----------------------------------> Start <----------------------------------+\n"
                "| {:75} |\n"
                "+----------------------------------> Start <----------------------------------+\n",
-               fmt::format("{:%FT%T%z} > {} has started on {} process{}",
+               fmt::format("[{:%FT%T%z}] {} has started on {} process{}",
                            fmt::localtime(scsc::to_time_t(fExecutionBeginSystemTime)), fExecutionName, mpiEnv.CommWorldSize(), mpiEnv.Parallel() ? "es" : ""));
 }
 
@@ -203,7 +203,7 @@ auto Executor<T>::PostTaskReport(T iEnded) const -> void {
         if ((iEnded + 1) % fPrintProgressModulo != 0) { return; }
     }
     const auto& mpiEnv{Env::MPIEnv::Instance()};
-    Env::Print("MPI{}> {:%FT%T%z} > {} {} has ended\n"
+    Env::Print("MPI{}> [{:%FT%T%z}] {} {} has ended\n"
                "MPI{}>   {} elaps., {}\n",
                mpiEnv.CommWorldRank(), fmt::localtime(scsc::to_time_t(scsc::now())), fTaskName, iEnded,
                mpiEnv.CommWorldRank(), SToDHMS(secondsElapsed),
@@ -234,7 +234,7 @@ auto Executor<T>::PostLoopReport() const -> void {
                "| {:75} |\n"
                "| {:75} |\n"
                "+-----------------------------------> End <-----------------------------------+\n",
-               fmt::format("{:%FT%T%z} > {} has ended on {} process{}", fmt::localtime(scsc::to_time_t(now)), fExecutionName, mpiEnv.CommWorldSize(), mpiEnv.Parallel() ? "es" : ""),
+               fmt::format("[{:%FT%T%z}] {} has ended on {} process{}", fmt::localtime(scsc::to_time_t(now)), fExecutionName, mpiEnv.CommWorldSize(), mpiEnv.Parallel() ? "es" : ""),
                fmt::format("  Start time: {:%FT%T%z}", fmt::localtime(scsc::to_time_t(fExecutionBeginSystemTime))),
                fmt::format("   Wall time: {:.3f} seconds{}", maxWallTime, maxWallTime <= 60 ? "" : " (" + SToDHMS(maxWallTime) + ')'),
                fmt::format("    CPU time: {:.3f} seconds{}", totalCpuTime, totalCpuTime <= 60 ? "" : " (" + SToDHMS(totalCpuTime) + ')'));

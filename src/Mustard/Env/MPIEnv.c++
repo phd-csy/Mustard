@@ -18,6 +18,7 @@
 
 #include "Mustard/Env/MPIEnv.h++"
 #include "Mustard/Env/Print.h++"
+#include "Mustard/Utility/PrettyLog.h++"
 
 #include "TROOT.h"
 
@@ -25,9 +26,9 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <iomanip>
-#include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -51,7 +52,7 @@ MPIEnv::MPIEnv(NoBanner, int argc, char* argv[],
                             MPI_THREAD_MULTIPLE, // required
                             &mpiThreadSupport);  // provided
             if (mpiThreadSupport < MPI_THREAD_FUNNELED) {
-                throw std::runtime_error{"the MPI library thread support is less than MPI_THREAD_FUNNELED"};
+                throw std::runtime_error{PrettyException("The MPI library thread support is less than MPI_THREAD_FUNNELED")};
             }
             return mpiThreadSupport;
         }()},
@@ -265,7 +266,8 @@ auto MPIEnv::PrintStartBannerBody(int argc, char* argv[]) const -> void {
     MPI_Get_version(&mpiRuntimeVersion.first,   // version
                     &mpiRuntimeVersion.second); // subversion
     // Messages
-    Print("\n"
+    Print(fmt::emphasis::bold,
+          "\n"
           " Parallelized with MPI, running {}\n",
           Parallel() ? "in parallel" : "sequentially");
     PrintLn<'I'>(" Compiled with MPI {}.{}, running with MPI {}.{}", MPI_VERSION, MPI_SUBVERSION, mpiRuntimeVersion.first, mpiRuntimeVersion.second);
@@ -274,18 +276,18 @@ auto MPIEnv::PrintStartBannerBody(int argc, char* argv[]) const -> void {
                "-------------------->  MPI library information (end)  <--------------------\n"
                "\n",
                mpiLibVersion);
-    PrintLn(" Size of the MPI world communicator: {}", fCommWorldSize);
+    Print(fmt::emphasis::bold, " Size of the MPI world communicator: {}\n", fCommWorldSize);
     if (OnSingleNode()) {
-        PrintLn(" Running on '{}'", LocalNode().name);
+        Print(fmt::emphasis::bold, " Running on '{}'\n", LocalNode().name);
     } else {
-        PrintLn(" Running on {} nodes:", ClusterSize());
+        Print(fmt::emphasis::bold, " Running on {} nodes:\n", ClusterSize());
         const auto maxNameWidth{std::ranges::max_element(NodeList(),
                                                          [](auto&& node1, auto&& node2) { return node1.name.size() < node2.name.size(); })
                                     ->name.size()};
         const auto format{fmt::format("  name: {{:{}}}  size: {{}}\n", maxNameWidth)};
         for (int nodeID{}; nodeID < ClusterSize(); ++nodeID) {
             const auto& node{Node(nodeID)};
-            VPrint(format, fmt::make_format_args(node.name, node.size));
+            VPrint(stdout, fmt::emphasis::bold, format, fmt::make_format_args(node.name, node.size));
         }
     }
 }

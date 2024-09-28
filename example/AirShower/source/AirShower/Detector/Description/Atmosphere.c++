@@ -1,7 +1,8 @@
 #include "AirShower/Detector/Description/Atmosphere.h++"
 
-#include "Mustard/Env/Print.h++"
+#include "Mustard/Env/Logging.h++"
 #include "Mustard/Utility/LiteralUnit.h++"
+#include "Mustard/Utility/PrettyLog.h++"
 
 #include "G4SystemOfUnits.hh"
 
@@ -83,7 +84,7 @@ public:
 
                 result = state;
             } else {
-                throw std::runtime_error("Altitude out of range!");
+                throw std::runtime_error{Mustard::PrettyException("Altitude out of range")};
             }
         } catch (const std::exception& e) {
             result = std::nullopt;
@@ -199,7 +200,7 @@ auto Atmosphere::CalculateAltitudeSlice() const -> std::vector<double> {
         const auto [alt, converged]{
             muc::find_root::zbrent([&, p = pressure[i]](auto z) { return CalculateP(z) - p; },
                                    0., *fMaxAltitude)};
-        if (not converged) { Mustard::Env::PrintLnWarning("Warning: Slice altitude not converged"); }
+        if (not converged) { Mustard::Env::PrintPrettyWarning("Slice altitude not converged"); }
         altitude[i] = alt;
     }
     altitude.back() = fMaxAltitude;

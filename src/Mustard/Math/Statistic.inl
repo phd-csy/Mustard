@@ -59,7 +59,7 @@ template<std::ranges::input_range S, std::ranges::input_range W>
     requires std::convertible_to<std::ranges::range_value_t<S>, double> and std::convertible_to<std::ranges::range_value_t<W>, double>
 constexpr auto Statistic<1>::Fill(const S& sample, const W& weight) -> void {
     if (std::ranges::size(sample) > std::ranges::size(weight)) {
-        throw std::invalid_argument{"Mustard::Math::Statistic::Fill: size of sample > size of weight"};
+        throw std::invalid_argument{PrettyException("Size of sample > size of weight")};
     }
     auto s = std::ranges::begin(sample);
     auto w = std::ranges::begin(weight);
@@ -85,8 +85,8 @@ constexpr auto Statistic<1>::CentralMoment() const -> double {
     if constexpr (K == 0) { return 1; }
     if constexpr (K == 1) { return 0; }
     if constexpr (K == 2) { return Moment<2>() - muc::pow<2>(Moment<1>()); }
-    if constexpr (K == 3) { return Math::Polynomial({Moment<3>(), -3 * Moment<2>(), 0, 2}, Moment<1>()); }
-    if constexpr (K == 4) { return Math::Polynomial({Moment<4>(), -4 * Moment<3>(), 6 * Moment<2>(), 0, -3}, Moment<1>()); }
+    if constexpr (K == 3) { return muc::polynomial({Moment<3>(), -3 * Moment<2>(), 0, 2}, Moment<1>()); }
+    if constexpr (K == 4) { return muc::polynomial({Moment<4>(), -4 * Moment<3>(), 6 * Moment<2>(), 0, -3}, Moment<1>()); }
 }
 
 template<int N>
@@ -147,7 +147,7 @@ template<std::ranges::input_range S, std::ranges::input_range W>
     requires Concept::InputVectorAny<std::ranges::range_value_t<S>, N> and std::convertible_to<std::ranges::range_value_t<W>, double>
 auto Statistic<N>::Fill(const S& sample, const W& weight) -> void {
     if (std::ranges::size(sample) > std::ranges::size(weight)) {
-        throw std::invalid_argument{"Mustard::Math::Statistic::Fill: size of sample > size of weight"};
+        throw std::invalid_argument{PrettyException("Size of sample > size of weight")};
     }
     auto s = std::ranges::begin(sample);
     auto w = std::ranges::begin(weight);
@@ -189,8 +189,8 @@ auto Statistic<N>::CentralMoment(int i) const -> double {
     if constexpr (K == 0) { return 1; }
     if constexpr (K == 1) { return 0; }
     if constexpr (K == 2) { return Moment<2>(i) - muc::pow<2>(Moment<1>(i)); }
-    if constexpr (K == 3) { return Math::Polynomial({Moment<3>(i), -3 * Moment<2>(i), 0, 2}, Moment<1>(i)); }
-    if constexpr (K == 4) { return Math::Polynomial({Moment<4>(i), -4 * Moment<3>(i), 6 * Moment<2>(i), 0, -3}, Moment<1>(i)); }
+    if constexpr (K == 3) { return muc::polynomial({Moment<3>(i), -3 * Moment<2>(i), 0, 2}, Moment<1>(i)); }
+    if constexpr (K == 4) { return muc::polynomial({Moment<4>(i), -4 * Moment<3>(i), 6 * Moment<2>(i), 0, -3}, Moment<1>(i)); }
 }
 
 template<int N>

@@ -18,12 +18,11 @@
 
 #pragma once
 
-#include "Mustard/Env/Print.h++"
+#include "Mustard/Env/Logging.h++"
 #include "Mustard/Extension/Geant4X/Particle/Antimuonium.h++"
 #include "Mustard/Extension/Geant4X/Particle/Muonium.h++"
 #include "Mustard/Extension/Geant4X/Physics/MuoniumPhysicsMessenger.h++"
 #include "Mustard/Extension/Geant4X/Physics/TargetForMuoniumPhysics.h++"
-#include "Mustard/Math/Polynomial.h++"
 #include "Mustard/Utility/LiteralUnit.h++"
 #include "Mustard/Utility/NonMoveableBase.h++"
 #include "Mustard/Utility/PhysicalConstant.h++"

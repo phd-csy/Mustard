@@ -20,12 +20,21 @@
 #include "Mustard/Env/Memory/internal/SingletonPool.h++"
 #include "Mustard/Env/Memory/internal/WeakSingletonPool.h++"
 #include "Mustard/Env/internal/EnvBase.h++"
+#include "Mustard/Utility/PrettyLog.h++"
 
 #include "muc/bit"
 
-#include "fmt/format.h"
+#include "gsl/gsl"
 
+#include "fmt/color.h"
+
+#include <exception>
 #include <limits>
+#include <typeinfo>
+
+#if __has_include(<cxxabi.h>)
+#    include <cxxabi.h>
+#endif
 
 #if MUSTARD_SIGNAL_HANDLER
 
@@ -38,17 +47,60 @@
 
 #    include <chrono>
 #    include <csignal>
+#    include <cstdio>
 #    include <cstdlib>
 #    include <ctime>
-#    include <iostream>
 
 #endif
 
 namespace Mustard::Env::internal {
 
+namespace {
+
+[[noreturn]] auto TerminateHandler() -> void {
+    constexpr auto Demangle{
+        [](gsl::czstring name) -> gsl::czstring {
+            if constexpr (requires(int status) { abi::__cxa_demangle(name, nullptr, nullptr, &status); }) {
+                int status;
+                return abi::__cxa_demangle(name, nullptr, nullptr, &status);
+            } else {
+                return name;
+            }
+        }};
+    try {
+        const auto exception{std::current_exception()};
+        if (exception) {
+            std::rethrow_exception(exception);
+        } else {
+            const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::dark_orange)};
+            PrintError(ts | fmt::emphasis::blink, "***");
+            PrintError(ts, " terminate called without an active exception");
+            PrintError("\n");
+        }
+    } catch (const std::exception& e) {
+        std::string_view what{e.what()};
+        if (not what.empty() and what.ends_with('\n')) { what.remove_suffix(1); }
+        const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::red)};
+        PrintError(ts | fmt::emphasis::blink, "***");
+        PrintError(ts, " terminate called after throwing an instance of '{}'\n", Demangle(typeid(e).name()));
+        PrintError(ts | fmt::emphasis::blink, "***");
+        PrintError(ts, "   what(): {}", what);
+        PrintError("\n");
+    } catch (...) {
+        const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::red)};
+        PrintError(ts | fmt::emphasis::blink, "***");
+        if constexpr (requires { std::current_exception().__cxa_exception_type()->name(); }) {
+            PrintError(ts, " terminate called after throwing an instance of '{}'", Demangle(std::current_exception().__cxa_exception_type()->name()));
+        } else {
+            PrintError(ts, " terminate called after throwing an instance of unknown type");
+        }
+        PrintError("\n");
+    }
+    std::abort();
+}
+
 #if MUSTARD_SIGNAL_HANDLER
 
-namespace {
 extern "C" {
 
 auto MUSTARD_SIGINT_SIGTERM_Handler(int sig) -> void {
@@ -65,23 +117,33 @@ auto MUSTARD_SIGINT_SIGTERM_Handler(int sig) -> void {
             const auto lineHeader{MPIEnv::Available() ?
                                       fmt::format("MPI{}> ", MPIEnv::Instance().CommWorldRank()) :
                                       ""};
-            PrintLn(std::clog, "");
+            const auto ts{fmt::emphasis::bold};
+            PrintError("\n");
             switch (sig) {
             case SIGINT:
-                PrintLn(std::clog, "{}***** INTERRUPT (SIGINT) received", lineHeader);
+                PrintError(ts, "{}***** INTERRUPT (SIGINT) received\n", lineHeader);
                 break;
             case SIGTERM:
-                PrintLn(std::clog, "{}***** TERMINATE (SIGTERM) received", lineHeader);
+                PrintError(ts, "{}***** TERMINATE (SIGTERM) received\n", lineHeader);
                 break;
             }
             if (MPIEnv::Available()) {
                 const auto& mpi{MPIEnv::Instance()};
-                PrintLn(std::clog, "{}***** on MPI process {} (node: {})", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+                PrintError(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
             }
-            PrintLn(std::clog, "{}***** at {:%FT%T%z}", lineHeader, fmt::localtime(now));
-            PrintStackTrace(64, 2);
-            PrintLn(std::clog, "");
-            flush(std::clog);
+            PrintError(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
+            PrintStackTrace(64, 2, stderr, ts);
+            PrintError("\n");
+            switch (sig) {
+            case SIGINT:
+                PrintError(ts, "Ctrl-C has been pressed or an external interrupt received."); // no '\n' looks good for now
+                break;
+            case SIGTERM:
+                PrintError(ts, "The process is terminated.\n");
+                break;
+            }
+            PrintError("\n");
+            std::fflush(stderr);
             std::raise(sig);
         }
     } handler{sig};
@@ -93,16 +155,19 @@ auto MUSTARD_SIGINT_SIGTERM_Handler(int sig) -> void {
     const auto lineHeader{MPIEnv::Available() ?
                               fmt::format("MPI{}> ", MPIEnv::Instance().CommWorldRank()) :
                               ""};
-    PrintLn(std::clog, "");
-    PrintLn(std::clog, "{}***** ABORT (SIGABRT) received", lineHeader);
+    const auto ts{fmt::emphasis::bold | fg(fmt::color::orange)};
+    PrintError("\n");
+    PrintError(ts, "{}***** ABORT (SIGABRT) received\n", lineHeader);
     if (MPIEnv::Available()) {
         const auto& mpi{MPIEnv::Instance()};
-        PrintLn(std::clog, "{}***** on MPI process {} (node: {})", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+        PrintError(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
     }
-    PrintLn(std::clog, "{}***** at {:%FT%T%z}", lineHeader, fmt::localtime(now));
-    PrintStackTrace(64, 2);
-    PrintLn(std::clog, "");
-    flush(std::clog);
+    PrintError(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
+    PrintStackTrace(64, 2, stderr, ts);
+    PrintError("\n");
+    PrintError(ts, "It is likely that an exception has been thrown. View the logs just before receiving SIGABRT for more information.\n");
+    PrintError("\n");
+    std::fflush(stderr);
     std::abort();
 }
 
@@ -120,35 +185,39 @@ auto MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler(int sig) -> void {
             const auto lineHeader{MPIEnv::Available() ?
                                       fmt::format("MPI{}> ", MPIEnv::Instance().CommWorldRank()) :
                                       ""};
-            PrintLn(std::clog, "");
+            const auto ts{fmt::emphasis::bold | fg(fmt::color::red)};
+            PrintError("\n");
             switch (sig) {
             case SIGFPE:
-                PrintLn(std::clog, "{}***** ERRONEOUS ARITHMETIC OPERATION (SIGFPE) received", lineHeader);
+                PrintError(ts, "{}***** ERRONEOUS ARITHMETIC OPERATION (SIGFPE) received\n", lineHeader);
                 break;
             case SIGILL:
-                PrintLn(std::clog, "{}***** ILLEGAL INSTRUCTION (SIGILL) received", lineHeader);
+                PrintError(ts, "{}***** ILLEGAL INSTRUCTION (SIGILL) received\n", lineHeader);
                 break;
             case SIGSEGV:
-                PrintLn(std::clog, "{}***** SEGMENTATION VIOLATION (SIGSEGV) received", lineHeader);
+                PrintError(ts, "{}***** SEGMENTATION VIOLATION (SIGSEGV) received\n", lineHeader);
                 break;
             }
             if (MPIEnv::Available()) {
                 const auto& mpi{MPIEnv::Instance()};
-                PrintLn(std::clog, "{}***** on MPI process {} (node: {})", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+                PrintError(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
             }
-            PrintLn(std::clog, "{}***** at {:%FT%T%z}", lineHeader, fmt::localtime(now));
-            PrintStackTrace(64, 2);
-            PrintLn(std::clog, "");
-            flush(std::clog);
+            PrintError(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
+            PrintStackTrace(64, 2, stderr, ts);
+            PrintError("\n");
+            PrintError(ts, "It is likely that the program has one or more errors. Try using debugging tools to address this issue.\n");
+            PrintError("\n");
+            std::fflush(stderr);
             std::raise(sig);
         }
     } handler{sig};
 }
 
 } // extern "C"
-} // namespace
 
 #endif
+
+} // namespace
 
 EnvBase::EnvBase() :
     NonMoveableBase{},
@@ -161,18 +230,20 @@ EnvBase::EnvBase() :
 
     CheckFundamentalType();
 
+    std::set_terminate(internal::TerminateHandler);
+
 #if MUSTARD_SIGNAL_HANDLER
-    std::signal(SIGABRT, MUSTARD_SIGABRT_Handler);
-    std::signal(SIGFPE, MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
-    std::signal(SIGILL, MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
-    std::signal(SIGINT, MUSTARD_SIGINT_SIGTERM_Handler);
-    std::signal(SIGSEGV, MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
-    std::signal(SIGTERM, MUSTARD_SIGINT_SIGTERM_Handler);
+    std::signal(SIGABRT, internal::MUSTARD_SIGABRT_Handler);
+    std::signal(SIGFPE, internal::MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
+    std::signal(SIGILL, internal::MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
+    std::signal(SIGINT, internal::MUSTARD_SIGINT_SIGTERM_Handler);
+    std::signal(SIGSEGV, internal::MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler);
+    std::signal(SIGTERM, internal::MUSTARD_SIGINT_SIGTERM_Handler);
 #endif
 
     if (static bool gInstantiated{false};
         gInstantiated) {
-        throw std::logic_error("Mustard::Env::internal::EnvBase: Trying to construct environment twice");
+        throw std::logic_error(PrettyException("Trying to construct environment twice"));
     } else {
         gInstantiated = true;
     }
@@ -211,26 +282,26 @@ auto EnvBase::CheckFundamentalType() -> void {
                         muc::bit_size<void*> == 64};
     if constexpr (not lp64) {
         if constexpr (llp64) {
-            fmt::println(stderr, "Warning: The fundamental data model is LLP64 (not LP64)");
+            fmt::print(stderr, fg(fmt::color::orange), "Warning: The fundamental data model is LLP64 (not LP64)\n");
         } else if constexpr (ilp32) {
-            fmt::println(stderr, "Warning: The fundamental data model is ILP32 (not LP64)");
+            fmt::print(stderr, fg(fmt::color::orange), "Warning: The fundamental data model is ILP32 (not LP64)\n");
         } else if constexpr (lp32) {
-            fmt::println(stderr, "Warning: The fundamental data model is LP32 (not LP64)");
+            fmt::print(stderr, fg(fmt::color::orange), "Warning: The fundamental data model is LP32 (not LP64)\n");
         } else {
-            fmt::println(stderr, "Warning: Using a rare fundamental data model "
-                                 "[{}-bits char, {}-bits short, {}-bits int, {}-bits long, {}-bits long long, {}-bits pointer], "
-                                 "run at your own risk",
-                         muc::bit_size<char>, muc::bit_size<short>, muc::bit_size<int>, muc::bit_size<long>, muc::bit_size<long long>, muc::bit_size<void*>);
+            fmt::print(stderr, fg(fmt::color::orange), "Warning: Using a rare fundamental data model "
+                                                       "[{}-bits char, {}-bits short, {}-bits int, {}-bits long, {}-bits long long, {}-bits pointer], "
+                                                       "run at your own risk\n",
+                       muc::bit_size<char>, muc::bit_size<short>, muc::bit_size<int>, muc::bit_size<long>, muc::bit_size<long long>, muc::bit_size<void*>);
         }
     }
     if (not std::numeric_limits<float>::is_iec559) {
-        fmt::println(stderr, "Warning: 'float' does not fulfill the requirements of IEC 559 (IEEE 754)");
+        fmt::print(stderr, fg(fmt::color::orange), "Warning: 'float' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
     if (not std::numeric_limits<double>::is_iec559) {
-        fmt::println(stderr, "Warning: 'double' does not fulfill the requirements of IEC 559 (IEEE 754)");
+        fmt::print(stderr, fg(fmt::color::orange), "Warning: 'double' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
     if (not std::numeric_limits<long double>::is_iec559) {
-        fmt::println(stderr, "Warning: 'long double' does not fulfill the requirements of IEC 559 (IEEE 754)");
+        fmt::print(stderr, fg(fmt::color::orange), "Warning: 'long double' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
 }
 

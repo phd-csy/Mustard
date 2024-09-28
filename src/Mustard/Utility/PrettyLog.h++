@@ -18,14 +18,15 @@
 
 #pragma once
 
-#include "Mustard/Utility/InlineMacro.h++"
-
-#include "fmt/color.h"
-
-#include <cstdio>
+#include <source_location>
+#include <string>
+#include <string_view>
 
 namespace Mustard::inline Utility {
 
-MUSTARD_NOINLINE auto PrintStackTrace(int depth = 64, int skip = 0, std::FILE* f = stderr, const fmt::text_style& ts = {}) -> void;
+auto PrettyInfo(std::string_view message, const std::source_location& location = std::source_location::current()) -> std::string;
+auto PrettyWarning(std::string_view message, const std::source_location& location = std::source_location::current()) -> std::string;
+auto PrettyError(std::string_view message, const std::source_location& location = std::source_location::current()) -> std::string;
+auto PrettyException(std::string_view message, const std::source_location& location = std::source_location::current()) -> std::string;
 
 } // namespace Mustard::inline Utility
