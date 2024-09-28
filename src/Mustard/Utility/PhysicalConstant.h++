@@ -73,10 +73,11 @@ constexpr auto muonium_lifetime = muon_lifetime;
 // --        Extra constants         -- //
 
 // --            Methods             -- //
-auto ConvertToEnergy(std::vector<G4double>& wavelength) {
-    std::vector<G4double> energy(wavelength.size());
+inline auto WavelengthToEnergy(const std::vector<double>& wavelength) -> auto {
+    std::vector<double> energy(wavelength.size());
     std::ranges::transform(wavelength, energy.begin(),
-                           [](auto val) { return CLHEP::h_Planck * CLHEP::c_light / val; });
+                           [](auto val) { return CLHEP::h_Planck * CLHEP::c_light / (val * CLHEP::nm); });
+    return energy;
 }
 
 } // namespace Mustard::inline Utility::PhysicalConstant
