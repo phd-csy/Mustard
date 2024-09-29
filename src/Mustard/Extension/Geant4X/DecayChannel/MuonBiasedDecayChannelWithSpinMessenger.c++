@@ -27,7 +27,9 @@ namespace Mustard::inline Extension::Geant4X::inline DecayChannel {
 MuonBiasedDecayChannelWithSpinMessenger::MuonBiasedDecayChannelWithSpinMessenger() :
     SingletonMessenger{},
     fDirectory{},
-    fEnergyCut{} {
+    fEnergyCut{},
+    fMinTheta{},
+    fMaxTheta{} {
 
     fDirectory = std::make_unique<G4UIdirectory>("/Mustard/Physics/MuonDecay/Biasing/");
     fDirectory->SetGuidance("Muon(ium) decay channel biasing.");
@@ -39,6 +41,22 @@ MuonBiasedDecayChannelWithSpinMessenger::MuonBiasedDecayChannelWithSpinMessenger
     fEnergyCut->SetDefaultUnit("MeV");
     fEnergyCut->SetRange("E >= 0");
     fEnergyCut->AvailableForStates(G4State_PreInit, G4State_Idle);
+
+    fMinTheta = std::make_unique<G4UIcmdWithADoubleAndUnit>("/Mustard/Physics/MuonDecay/Biasing/MinTheta", this);
+    fMinTheta->SetGuidance("Set emission angle biasing for muon(ium) decay channel.");
+    fMinTheta->SetParameterName("theta", false);
+    fMinTheta->SetDefaultValue(0.);
+    fMinTheta->SetDefaultUnit("deg");
+    fMinTheta->SetRange("theta >= 0");
+    fMinTheta->AvailableForStates(G4State_PreInit, G4State_Idle);
+
+    fMaxTheta = std::make_unique<G4UIcmdWithADoubleAndUnit>("/Mustard/Physics/MuonDecay/Biasing/MaxTheta", this);
+    fMaxTheta->SetGuidance("Set emission angle biasing for muon(ium) decay channel.");
+    fMaxTheta->SetParameterName("theta", false);
+    fMaxTheta->SetDefaultValue(180.);
+    fMaxTheta->SetDefaultUnit("deg");
+    fMaxTheta->SetRange("theta <= 180");
+    fMaxTheta->AvailableForStates(G4State_PreInit, G4State_Idle);
 }
 
 MuonBiasedDecayChannelWithSpinMessenger::~MuonBiasedDecayChannelWithSpinMessenger() = default;
@@ -47,6 +65,14 @@ auto MuonBiasedDecayChannelWithSpinMessenger::SetNewValue(G4UIcommand* command, 
     if (command == fEnergyCut.get()) {
         Deliver<MuonBiasedDecayChannelWithSpin>([&](auto&& r) {
             r.EnergyCut(fEnergyCut->GetNewDoubleValue(value));
+        });
+    } else if (command == fMinTheta.get()) {
+        Deliver<MuonBiasedDecayChannelWithSpin>([&](auto&& r) {
+            r.MinTheta(fMinTheta->GetNewDoubleValue(value));
+        });
+    } else if (command == fMaxTheta.get()) {
+        Deliver<MuonBiasedDecayChannelWithSpin>([&](auto&& r) {
+            r.MaxTheta(fMaxTheta->GetNewDoubleValue(value));
         });
     }
 }

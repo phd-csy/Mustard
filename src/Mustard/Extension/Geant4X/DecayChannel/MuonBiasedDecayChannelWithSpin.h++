@@ -29,12 +29,19 @@ public:
     MuonBiasedDecayChannelWithSpin(const G4String& parentName, G4double br);
 
     auto EnergyCut() const -> auto { return fEnergyCut; }
+    auto MinTheta() const -> auto { return fMinTheta; }
+    auto MaxTheta() const -> auto { return fMaxTheta; }
+
     auto EnergyCut(double cut) -> void { fEnergyCut = cut; }
+    auto MinTheta(double val) -> void { fMinTheta = val; }
+    auto MaxTheta(double val) -> void { fMaxTheta = val; }
 
     auto DecayIt(G4double) -> G4DecayProducts* override;
 
 private:
     double fEnergyCut;
+    double fMinTheta;
+    double fMaxTheta;
 
     MuonBiasedDecayChannelWithSpinMessenger::Register<MuonBiasedDecayChannelWithSpin> fMessengerRegister;
 };

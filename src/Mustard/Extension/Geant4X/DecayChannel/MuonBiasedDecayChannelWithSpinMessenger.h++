@@ -43,6 +43,8 @@ public:
 private:
     std::unique_ptr<G4UIdirectory> fDirectory;
     std::unique_ptr<G4UIcmdWithADoubleAndUnit> fEnergyCut;
+    std::unique_ptr<G4UIcmdWithADoubleAndUnit> fMinTheta;
+    std::unique_ptr<G4UIcmdWithADoubleAndUnit> fMaxTheta;
 };
 
 } // namespace Mustard::inline Extension::Geant4X::inline DecayChannel
