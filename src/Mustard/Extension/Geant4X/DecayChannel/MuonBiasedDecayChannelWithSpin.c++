@@ -58,7 +58,7 @@ auto GenerateConicFlux(G4double MinTheta, G4double MaxTheta, G4ThreeVector& mom)
 
 auto MuonBiasedDecayChannelWithSpin::DecayIt(G4double) -> G4DecayProducts* {
     while (true) {
-        const auto products{G4MuonDecayChannelWithSpin::DecayIt(muon_mass_c2)};
+        const auto products{G4MuonDecayChannelWithSpin::DecayIt(mass)};
         const auto positron{(*products)[0]};
         auto initialDirection{positron->GetMomentumDirection()};
 

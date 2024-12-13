@@ -24,6 +24,6 @@
 namespace Mustard::inline Extension::Geant4X::inline DecayChannel {
 
 using MuoniumInternalConversionDecayChannel = Geant4X::AsMuoniumDecayChannel<MuonInternalConversionDecayChannel,
-                                                                                 "MuoniumICDecay">;
+                                                                             "MuoniumICDecay">;
 
 } // namespace Mustard::inline Extension::Geant4X::inline DecayChannel

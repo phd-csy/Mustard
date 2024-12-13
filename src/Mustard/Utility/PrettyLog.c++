@@ -17,11 +17,14 @@
 // Mustard. If not, see <https://www.gnu.org/licenses/>.
 
 #include "Mustard/Env/MPIEnv.h++"
+#include "Mustard/Env/Print.h++"
 #include "Mustard/Utility/PrettyLog.h++"
 
 #include "fmt/chrono.h"
+#include "fmt/color.h"
 
 #include <chrono>
+#include <filesystem>
 
 namespace Mustard::inline Utility {
 
@@ -33,7 +36,7 @@ auto PrettyLogHead(std::string_view prefix, const std::source_location& location
     return fmt::format("[{:%FT%T%z}] {}{}({}:{}) `{}`{}",
                        fmt::localtime(scsc::to_time_t(scsc::now())),
                        prefix,
-                       location.file_name(),
+                       std::filesystem::path{location.file_name()}.filename().generic_string(),
                        location.line(),
                        location.column(),
                        location.function_name(),
@@ -59,6 +62,29 @@ auto PrettyError(std::string_view message, const std::source_location& location)
 
 auto PrettyException(std::string_view message, const std::source_location& location) -> std::string {
     return fmt::format("{}: {}", internal::PrettyLogHead("", location), message);
+}
+
+auto PrintInfo(std::string_view message, const std::source_location& location) -> void {
+    const auto ts{fg(fmt::color::deep_sky_blue)};
+    Env::Print<'I'>(ts, "{}: ", internal::PrettyLogHead("Information from ", location));
+    Env::Print<'I'>(ts | fmt::emphasis::bold, "{}", message);
+    Env::Print<'I'>("\n");
+}
+
+auto PrintWarning(std::string_view message, const std::source_location& location) -> void {
+    const auto ts{fg(fmt::color::white) | bg(fmt::color::dark_orange)};
+    Env::Print<'W'>(ts | fmt::emphasis::bold | fmt::emphasis::blink, "***");
+    Env::Print<'W'>(ts, " {}: ", internal::PrettyLogHead("Warning from ", location));
+    Env::Print<'W'>(ts | fmt::emphasis::bold, " {}", message);
+    Env::Print<'W'>("\n");
+}
+
+auto PrintError(std::string_view message, const std::source_location& location) -> void {
+    const auto ts{fg(fmt::color::white) | bg(fmt::color::red)};
+    Env::Print<'E'>(ts | fmt::emphasis::bold | fmt::emphasis::blink, "***");
+    Env::Print<'E'>(ts, " {}: ", internal::PrettyLogHead("Error from ", location));
+    Env::Print<'E'>(ts | fmt::emphasis::bold, " {}", message);
+    Env::Print<'E'>("\n");
 }
 
 } // namespace Mustard::inline Utility

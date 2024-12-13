@@ -19,7 +19,6 @@
 #pragma once
 
 #include "Mustard/Concept/MPIPredefined.h++"
-#include "Mustard/Env/Logging.h++"
 #include "Mustard/Env/MPIEnv.h++"
 #include "Mustard/Env/Print.h++"
 #include "Mustard/Extension/MPIX/Execution/DynamicScheduler.h++"
@@ -65,6 +64,9 @@ public:
     template<template<typename> typename S = DynamicScheduler>
         requires std::derived_from<S<T>, Scheduler<T>>
     Executor(ScheduleBy<S> = {});
+    template<template<typename> typename S = DynamicScheduler>
+        requires std::derived_from<S<T>, Scheduler<T>>
+    Executor(std::string executionName, std::string taskName, ScheduleBy<S> = {});
 
     template<template<typename> typename AScheduler>
         requires std::derived_from<AScheduler<T>, Scheduler<T>>

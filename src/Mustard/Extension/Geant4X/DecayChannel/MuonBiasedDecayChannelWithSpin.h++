@@ -36,7 +36,7 @@ public:
     auto MinTheta(double val) -> void { fMinTheta = val; }
     auto MaxTheta(double val) -> void { fMaxTheta = val; }
 
-    auto DecayIt(G4double) -> G4DecayProducts* override;
+    auto DecayIt(G4double mass) -> G4DecayProducts* override;
 
 private:
     double fEnergyCut;
