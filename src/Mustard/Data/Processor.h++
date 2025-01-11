@@ -18,20 +18,26 @@
 
 #pragma once
 
-#include "Mustard/Data/RDFEventSplitPoint.h++"
+#include "Mustard/Data/RDFEventSplit.h++"
 #include "Mustard/Data/TakeFrom.h++"
 #include "Mustard/Data/internal/ProcessorBase.h++"
 #include "Mustard/Env/MPIEnv.h++"
 #include "Mustard/Extension/MPIX/Execution/Executor.h++"
-#include "Mustard/Extension/ROOTX/RDataFrame.h++"
 #include "Mustard/Utility/PrettyLog.h++"
 
+#include "ROOT/RDataFrame.hxx"
+
 #include "muc/concepts"
+#include "muc/ptrvec"
+
+#include "gsl/gsl"
 
 #include "fmt/core.h"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
+#include <future>
 #include <memory>
 #include <numeric>
 #include <ranges>
@@ -50,24 +56,24 @@ private:
     using Index = typename Base::Index;
 
 public:
-    Processor(AExecutor executor = {}, Index batchSizeProposal = 5'000'000);
+    Processor(AExecutor executor = {});
 
     template<TupleModelizable... Ts>
-    auto Process(ROOTX::RDataFrame auto&& rdf,
-                 std::invocable<bool, std::shared_ptr<Tuple<Ts...>>&> auto&& F) -> Index;
+    auto Process(ROOT::RDF::RNode rdf,
+                 std::invocable<bool, std::shared_ptr<Tuple<Ts...>>> auto&& F) -> Index;
 
     template<TupleModelizable... Ts>
-    auto Process(ROOTX::RDataFrame auto&& rdf, std::string_view eventIDBranchName,
-                 std::invocable<bool, std::vector<std::shared_ptr<Tuple<Ts...>>>&> auto&& F) -> Index;
+    auto Process(ROOT::RDF::RNode rdf, std::string eventIDBranchName,
+                 std::invocable<bool, muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
     template<TupleModelizable... Ts>
-    auto Process(ROOTX::RDataFrame auto&& rdf, const std::vector<unsigned>& eventSplitPoint,
-                 std::invocable<bool, std::vector<std::shared_ptr<Tuple<Ts...>>>&> auto&& F) -> Index;
+    auto Process(ROOT::RDF::RNode rdf, const std::vector<unsigned>& eventSplit,
+                 std::invocable<bool, muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
 
     auto Executor() const -> const auto& { return fExecutor; }
     auto Executor() -> auto& { return fExecutor; }
 
 private:
-    static auto ByPassCheck(Index n, std::string_view what) -> bool;
+    static auto ByPassOccurrenceCheck(Index n, std::string_view what) -> bool;
 
 private:
     AExecutor fExecutor;

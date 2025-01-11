@@ -23,30 +23,27 @@
 #include "Mustard/Utility/PrettyLog.h++"
 
 #include "muc/bit"
+#include "muc/utility"
 
 #include "gsl/gsl"
 
 #include "fmt/color.h"
 
+#include <csignal>
 #include <exception>
 #include <limits>
 #include <typeinfo>
 
-#if __has_include(<cxxabi.h>)
-#    include <cxxabi.h>
-#endif
-
 #if MUSTARD_SIGNAL_HANDLER
 
 #    include "Mustard/Env/MPIEnv.h++"
-#    include "Mustard/Env/Print.h++"
 #    include "Mustard/Utility/InlineMacro.h++"
+#    include "Mustard/Utility/Print.h++"
 #    include "Mustard/Utility/PrintStackTrace.h++"
 
 #    include "fmt/chrono.h"
 
 #    include <chrono>
-#    include <csignal>
 #    include <cstdio>
 #    include <cstdlib>
 #    include <ctime>
@@ -58,18 +55,10 @@ namespace Mustard::Env::internal {
 namespace {
 
 [[noreturn]] auto TerminateHandler() -> void {
-    constexpr auto Demangle{
-        [](gsl::czstring name) -> gsl::czstring {
-            if constexpr (requires(int status) { abi::__cxa_demangle(name, nullptr, nullptr, &status); }) {
-                int status;
-                return abi::__cxa_demangle(name, nullptr, nullptr, &status);
-            } else {
-                return name;
-            }
-        }};
     try {
         const auto exception{std::current_exception()};
         if (exception) {
+            std::signal(SIGABRT, SIG_DFL);
             std::rethrow_exception(exception);
         } else {
             const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::dark_orange)};
@@ -82,7 +71,7 @@ namespace {
         if (not what.empty() and what.ends_with('\n')) { what.remove_suffix(1); }
         const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::red)};
         Print<'E'>(ts | fmt::emphasis::blink, "***");
-        Print<'E'>(ts, " terminate called after throwing an instance of '{}'\n", Demangle(typeid(e).name()));
+        Print<'E'>(ts, " terminate called after throwing an instance of '{}'\n", muc::try_demangle(typeid(e).name()));
         Print<'E'>(ts | fmt::emphasis::blink, "***");
         Print<'E'>(ts, "   what(): {}", what);
         Print<'E'>("\n");
@@ -90,9 +79,9 @@ namespace {
         const auto ts{fmt::emphasis::bold | fg(fmt::color::white) | bg(fmt::color::red)};
         Print<'E'>(ts | fmt::emphasis::blink, "***");
         if constexpr (requires { std::current_exception().__cxa_exception_type()->name(); }) {
-            Print<'E'>(ts, " terminate called after throwing an instance of '{}'", Demangle(std::current_exception().__cxa_exception_type()->name()));
+            Print<'E'>(ts, " terminate called after throwing an instance of '{}'", muc::try_demangle(std::current_exception().__cxa_exception_type()->name()));
         } else {
-            Print<'E'>(ts, " terminate called after throwing an instance of unknown type");
+            Print<'E'>(ts, " terminate called after throwing a non-std::exception instance");
         }
         Print<'E'>("\n");
     }
@@ -129,7 +118,7 @@ auto MUSTARD_SIGINT_SIGTERM_Handler(int sig) -> void {
             }
             if (MPIEnv::Available()) {
                 const auto& mpi{MPIEnv::Instance()};
-                Print<'E'>(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+                Print<'E'>(ts, "{}***** in MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
             }
             Print<'E'>(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
             PrintStackTrace(64, 2, stderr, ts);
@@ -160,12 +149,12 @@ auto MUSTARD_SIGINT_SIGTERM_Handler(int sig) -> void {
     Print<'E'>(ts, "{}***** ABORT (SIGABRT) received\n", lineHeader);
     if (MPIEnv::Available()) {
         const auto& mpi{MPIEnv::Instance()};
-        Print<'E'>(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+        Print<'E'>(ts, "{}***** in MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
     }
     Print<'E'>(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
     PrintStackTrace(64, 2, stderr, ts);
     Print<'E'>("\n");
-    Print<'E'>(ts, "It is likely that an exception has been thrown. View the logs just before receiving SIGABRT for more information.\n");
+    Print<'E'>(ts, "The process is aborted. View the logs just before receiving SIGABRT for more information.\n");
     Print<'E'>("\n");
     std::fflush(stderr);
     std::abort();
@@ -200,7 +189,7 @@ auto MUSTARD_SIGFPE_SIGILL_SIGSEGV_Handler(int sig) -> void {
             }
             if (MPIEnv::Available()) {
                 const auto& mpi{MPIEnv::Instance()};
-                Print<'E'>(ts, "{}***** on MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
+                Print<'E'>(ts, "{}***** in MPI process {} (node: {})\n", lineHeader, mpi.CommWorldRank(), mpi.LocalNode().name);
             }
             Print<'E'>(ts, "{}***** at {:%FT%T%z}\n", lineHeader, fmt::localtime(now));
             PrintStackTrace(64, 2, stderr, ts);
@@ -243,7 +232,7 @@ EnvBase::EnvBase() :
 
     if (static bool gInstantiated{false};
         gInstantiated) {
-        throw std::logic_error(PrettyException("Trying to construct environment twice"));
+        Throw<std::logic_error>("Trying to construct environment twice");
     } else {
         gInstantiated = true;
     }
@@ -294,13 +283,13 @@ auto EnvBase::CheckFundamentalType() -> void {
                        muc::bit_size<char>, muc::bit_size<short>, muc::bit_size<int>, muc::bit_size<long>, muc::bit_size<long long>, muc::bit_size<void*>);
         }
     }
-    if (not std::numeric_limits<float>::is_iec559) {
+    if constexpr (not std::numeric_limits<float>::is_iec559) {
         fmt::print(stderr, fg(fmt::color::orange), "Warning: 'float' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
-    if (not std::numeric_limits<double>::is_iec559) {
+    if constexpr (not std::numeric_limits<double>::is_iec559) {
         fmt::print(stderr, fg(fmt::color::orange), "Warning: 'double' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
-    if (not std::numeric_limits<long double>::is_iec559) {
+    if constexpr (not std::numeric_limits<long double>::is_iec559) {
         fmt::print(stderr, fg(fmt::color::orange), "Warning: 'long double' does not fulfill the requirements of IEC 559 (IEEE 754)\n");
     }
 }

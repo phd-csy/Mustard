@@ -21,20 +21,20 @@ namespace Mustard::Detector::Definition {
 template<std::derived_from<DefinitionBase> ADefinition>
 auto DefinitionBase::NewDaughter(bool checkOverlaps) -> ADefinition& {
     if (typeid(ADefinition) == typeid(*this)) {
-        throw std::logic_error{PrettyException("Trying to add the same geometry to itself as a daughter")};
+        Throw<std::logic_error>("Trying to add the same geometry to itself as a daughter");
     }
 
     const auto [iterator, emplaced]{fDaughters.try_emplace(typeid(ADefinition), std::make_unique_for_overwrite<ADefinition>())};
     if (not emplaced) {
-        throw std::logic_error{PrettyException("Trying to add the same geometry to itself as a daughter")};
+        Throw<std::logic_error>("Trying to add the same geometry to itself as a daughter");
     }
     const auto& daughter{iterator->second};
     daughter->fMother = this;
 
-    if (Topmost() and Enabled() and not Ready()) {
+    if (Topmost() and Enabled() and not Ready<"quiet">()) {
         Construct(checkOverlaps);
     }
-    if (Ready() and daughter->Enabled()) {
+    if (Ready<"warning">() and daughter->Enabled()) {
         daughter->Construct(checkOverlaps);
     }
 
@@ -82,6 +82,20 @@ auto DefinitionBase::Make(auto&&... args) -> gsl::not_null<APhysical*> {
         assert(fFirstPhysicalVolumes->size() == 1);
     }
     return static_cast<APhysical*>(physics);
+}
+
+template<muc::ceta_string AMode>
+    requires(AMode == "warning" or AMode == "quiet")
+auto DefinitionBase::Ready() const -> bool {
+    if (not fPhysicalVolumes.empty()) {
+        return true;
+    }
+    if constexpr (AMode == "warning") {
+        if (Enabled()) {
+            Mustard::PrintWarning(fmt::format("{} is enabled but no volumes are placed", muc::try_demangle(typeid(*this).name())));
+        }
+    }
+    return false;
 }
 
 } // namespace Mustard::Detector::Definition

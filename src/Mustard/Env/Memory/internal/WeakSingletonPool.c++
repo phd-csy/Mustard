@@ -25,37 +25,41 @@
 
 namespace Mustard::Env::Memory::internal {
 
-WeakSingletonPool* WeakSingletonPool::fgInstance = nullptr;
+WeakSingletonPool* WeakSingletonPool::fgInstance{};
+bool WeakSingletonPool::fgInstantiated{};
+bool WeakSingletonPool::fgExpired{};
 
 WeakSingletonPool::WeakSingletonPool() :
     NonMoveableBase{},
     fInstanceMap{} {
-    if (fgInstance == nullptr) {
+    if (not fgInstantiated) {
         fgInstance = this;
+        fgInstantiated = true;
     } else {
-        throw std::logic_error{PrettyException("Trying to instantiate the pool twice")};
+        Throw<std::logic_error>("Trying to instantiate the pool twice");
     }
 }
 
 WeakSingletonPool::~WeakSingletonPool() {
     for (auto&& [type, instance] : std::as_const(fInstanceMap)) {
         if (instance.expired()) {
-            PrintError(fmt::format("Instance pointer of {} expired", type.name()));
+            PrintError(fmt::format("Instance pointer of {} expired", muc::try_demangle(type.name())));
         }
         if (*instance.lock() != nullptr) [[unlikely]] {
             PrintError(fmt::format("Instance of {} survives, implies memory leak or following undefined behavior",
-                                         type.name()));
+                                   muc::try_demangle(type.name())));
         }
     }
     fgInstance = nullptr;
+    fgExpired = true;
 }
 
 auto WeakSingletonPool::Instance() -> WeakSingletonPool& {
     if (fgInstance != nullptr) {
         return *fgInstance;
     } else {
-        throw std::logic_error{PrettyException("The pool has not been instantiated or has been destructed "
-                                               "(maybe you forgot to instantiate an environment?)")};
+        Throw<std::runtime_error>("The pool has not been instantiated or has been destructed "
+                                  "(maybe you forgot to instantiate an environment?)");
     }
 }
 

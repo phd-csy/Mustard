@@ -24,6 +24,8 @@
 #include "Mustard/Utility/InlineMacro.h++"
 #include "Mustard/Utility/PrettyLog.h++"
 
+#include "muc/utility"
+
 #include "fmt/format.h"
 
 #include <cassert>
@@ -42,7 +44,8 @@ class WeakSingleton : public internal::WeakSingletonBase {
     friend class PassiveSingleton<ADerived>;
 
 protected:
-    WeakSingleton();
+    [[deprecated]] WeakSingleton();
+    WeakSingleton(ADerived* self);
     ~WeakSingleton();
 
 public:

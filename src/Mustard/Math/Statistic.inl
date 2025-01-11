@@ -23,7 +23,8 @@ constexpr Statistic<1>::Statistic() :
     fSumWX2{},
     fSumWX3{},
     fSumWX4{},
-    fSumW{} {}
+    fSumW{},
+    fSumW2{} {}
 
 template<std::ranges::input_range S>
     requires std::convertible_to<std::ranges::range_value_t<S>, double>
@@ -45,6 +46,7 @@ constexpr auto Statistic<1>::Fill(double sample, double weight) -> void {
     fSumWX3 += weight * muc::pow<3>(sample);
     fSumWX4 += weight * muc::pow<4>(sample);
     fSumW += weight;
+    fSumW2 += muc::pow<2>(weight);
 }
 
 template<std::ranges::input_range S>
@@ -59,7 +61,7 @@ template<std::ranges::input_range S, std::ranges::input_range W>
     requires std::convertible_to<std::ranges::range_value_t<S>, double> and std::convertible_to<std::ranges::range_value_t<W>, double>
 constexpr auto Statistic<1>::Fill(const S& sample, const W& weight) -> void {
     if (std::ranges::size(sample) > std::ranges::size(weight)) {
-        throw std::invalid_argument{PrettyException("Size of sample > size of weight")};
+        Throw<std::invalid_argument>("Size of sample > size of weight");
     }
     auto s = std::ranges::begin(sample);
     auto w = std::ranges::begin(weight);
@@ -92,11 +94,12 @@ constexpr auto Statistic<1>::CentralMoment() const -> double {
 template<int N>
     requires(N > 0)
 Statistic<N>::Statistic() :
-    fSumWX{},
-    fSumWXX{},
-    fSumWX3{},
-    fSumWX4{},
-    fSumW{} {}
+    fSumWX{Eigen::Vector<double, N>::Zero()},
+    fSumWXX{Eigen::Matrix<double, N, N>::Zero()},
+    fSumWX3{Eigen::Vector<double, N>::Zero()},
+    fSumWX4{Eigen::Vector<double, N>::Zero()},
+    fSumW{},
+    fSumW2{} {}
 
 template<int N>
     requires(N > 0)
@@ -129,6 +132,7 @@ auto Statistic<N>::Fill(const T& sample, double weight) -> void {
     wx = wx.cwiseProduct(x).eval();
     fSumWX4 += wx;
     fSumW += weight;
+    fSumW2 += muc::pow<2>(weight);
 }
 
 template<int N>
@@ -147,7 +151,7 @@ template<std::ranges::input_range S, std::ranges::input_range W>
     requires Concept::InputVectorAny<std::ranges::range_value_t<S>, N> and std::convertible_to<std::ranges::range_value_t<W>, double>
 auto Statistic<N>::Fill(const S& sample, const W& weight) -> void {
     if (std::ranges::size(sample) > std::ranges::size(weight)) {
-        throw std::invalid_argument{PrettyException("Size of sample > size of weight")};
+        Throw<std::invalid_argument>("Size of sample > size of weight");
     }
     auto s = std::ranges::begin(sample);
     auto w = std::ranges::begin(weight);

@@ -20,7 +20,27 @@
 
 namespace Mustard::Data {
 
-SeqProcessor::SeqProcessor(Index batchSizeProposal) :
-    ProcessorBase{batchSizeProposal} {}
+SeqProcessor::SeqProcessor() :
+    ProcessorBase{},
+    fPrintProgress{true},
+    fProgressBar{} {}
+
+auto SeqProcessor::LoopBeginAction(Index nTotal) -> void {
+    if (fPrintProgress) {
+        fProgressBar.Start(nTotal);
+    }
+}
+
+auto SeqProcessor::IterationEndAction() -> void {
+    if (fPrintProgress) {
+        fProgressBar.Tick();
+    }
+}
+
+auto SeqProcessor::LoopEndAction() -> void {
+    if (fPrintProgress) {
+        fProgressBar.Complete();
+    }
+}
 
 } // namespace Mustard::Data

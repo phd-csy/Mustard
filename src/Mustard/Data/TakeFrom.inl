@@ -19,8 +19,9 @@
 namespace Mustard::Data {
 
 template<TupleModelizable... Ts>
-auto Take<Ts...>::From(ROOTX::RDataFrame auto&& rdf) -> std::vector<std::shared_ptr<Tuple<Ts...>>> {
-    std::vector<std::shared_ptr<Tuple<Ts...>>> data;
+auto Take<Ts...>::From(ROOT::RDF::RNode rdf) -> muc::shared_ptrvec<Tuple<Ts...>> {
+    muc::shared_ptrvec<Tuple<Ts...>> data;
+    // data.reserve(*rdf.Count());   -- slow!
     rdf.Foreach(TakeOne{data, gslx::make_index_sequence<Tuple<Ts...>::Size()>{}},
                 []<gsl::index... Is>(gslx::index_sequence<Is...>) -> std::vector<std::string> {
                     return {std::tuple_element_t<Is, Tuple<Ts...>>::Name().s()...};
@@ -57,7 +58,7 @@ private:
                                         TargetType<I>>;
 
 public:
-    TakeOne(std::vector<std::shared_ptr<Tuple<Ts...>>>& data, gslx::index_sequence<Is...>) :
+    TakeOne(muc::shared_ptrvec<Tuple<Ts...>>& data, gslx::index_sequence<Is...>) :
         fData{data} {}
 
     auto operator()(const ReadType<Is>&... value) -> void {
@@ -73,9 +74,8 @@ private:
     template<muc::instantiated_from<std::vector> T, typename U>
         requires std::same_as<typename T::value_type, U>
     static auto As(const ROOT::RVec<U>& src) -> T {
-        T dest;
-        dest.reserve(src.size());
-        for (auto&& val : src) { dest.emplace_back(val); }
+        T dest(src.size());
+        std::ranges::copy(src, dest.begin());
         return dest;
     }
 
@@ -88,7 +88,7 @@ private:
     }
 
 private:
-    std::vector<std::shared_ptr<Tuple<Ts...>>>& fData;
+    muc::shared_ptrvec<Tuple<Ts...>>& fData;
 };
 
 } // namespace Mustard::Data

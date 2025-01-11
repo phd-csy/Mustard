@@ -23,6 +23,8 @@
 #include "Mustard/Utility/NonMoveableBase.h++"
 #include "Mustard/Utility/PrettyLog.h++"
 
+#include "muc/utility"
+
 #include "gsl/gsl"
 
 #include "fmt/format.h"
@@ -44,6 +46,7 @@ class SingletonBase;
 /// Not API.
 class SingletonPool final : public PassiveSingleton<SingletonPool> {
 public:
+    SingletonPool();
     ~SingletonPool();
 
     template<Singletonified ASingleton>

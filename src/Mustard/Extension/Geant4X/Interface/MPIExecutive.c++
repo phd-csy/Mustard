@@ -17,15 +17,18 @@
 // Mustard. If not, see <https://www.gnu.org/licenses/>.
 
 #include "Mustard/Env/MPIEnv.h++"
-#include "Mustard/Env/Print.h++"
 #include "Mustard/Extension/Geant4X/Interface/MPIExecutive.h++"
 #include "Mustard/Utility/PrettyLog.h++"
+#include "Mustard/Utility/Print.h++"
 
 #include <ostream>
 #include <source_location>
 #include <stdexcept>
 
 namespace Mustard::inline Extension::Geant4X::inline Interface {
+
+MPIExecutive::MPIExecutive() :
+    WeakSingleton{this} {}
 
 auto MPIExecutive::CheckSequential() const -> void {
     const auto& mpiEnv = Env::MPIEnv::Instance();
@@ -36,7 +39,7 @@ auto MPIExecutive::CheckSequential() const -> void {
                         JustWarning,
                         "Interactive session must be run with only 1 process.\nThrowing an instance of std::logic_error.");
         }
-        throw std::logic_error{PrettyException("Interactive session must be sequential")};
+        Throw<std::logic_error>("Interactive session must be sequential");
     }
 }
 
@@ -46,14 +49,14 @@ auto MPIExecutive::ExecuteCommand(const std::string& command) -> bool {
                             [](unsigned char ch) {
                                 return std::isspace(ch);
                             })) {
-        Env::PrintLn(G4cout, "{}", command);
+        PrintLn(G4cout, "{}", command);
         return true;
     }
     if (const auto commandStatus = G4UImanager::GetUIpointer()->ApplyCommand(command);
         commandStatus == fCommandSucceeded) [[likely]] {
         return true;
     } else {
-        Env::PrintLn(G4cerr, "Mustard::Geant4X::MPIExecutive::Execute: Command '{}' failed (G4UIcommandStatus: {})", command, commandStatus), flush(G4cerr);
+        PrintLn(G4cerr, "Mustard::Geant4X::MPIExecutive::Execute: Command '{}' failed (G4UIcommandStatus: {})", command, commandStatus), flush(G4cerr);
         return false;
     }
 }

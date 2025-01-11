@@ -26,6 +26,10 @@
 #include "G4VPhysicalVolume.hh"
 #include "G4VSolid.hh"
 
+#include "muc/ceta_string"
+#include "muc/ptrvec"
+#include "muc/utility"
+
 #include "gsl/gsl"
 
 #include "fmt/core.h"
@@ -106,44 +110,46 @@ public:
     auto ParallelExport(std::filesystem::path gdmlFile, std::string_view physicalVolumeName, gsl::index iPhysicalVolume = 0) const -> std::filesystem::path;
 
     auto LogicalVolumes() const -> const std::vector<G4LogicalVolume*>&;
-    auto LogicalVolumes(std::string_view name) const -> const auto& { return fLogicalVolumes.at(std::string{name}); }
-    auto LogicalVolume(gsl::index i = 0) const -> auto { return LogicalVolumes().at(i); }
-    auto LogicalVolume(std::string_view name, gsl::index i = 0) const -> auto { return LogicalVolumes(name).at(i); }
+    auto LogicalVolumes(std::string_view name) const -> const std::vector<G4LogicalVolume*>&;
+    auto LogicalVolume(gsl::index i = 0) const -> G4LogicalVolume*;
+    auto LogicalVolume(std::string_view name, gsl::index i = 0) const -> G4LogicalVolume*;
 
     auto PhysicalVolumes() const -> const std::vector<G4VPhysicalVolume*>&;
-    auto PhysicalVolumes(std::string_view name) const -> const auto& { return fPhysicalVolumes.at(std::string{name}); }
-    auto PhysicalVolume(gsl::index i = 0) const -> auto { return PhysicalVolumes().at(i); }
-    auto PhysicalVolume(std::string_view name, gsl::index i = 0) const -> auto { return PhysicalVolumes(name).at(i); }
+    auto PhysicalVolumes(std::string_view name) const -> const std::vector<G4VPhysicalVolume*>&;
+    auto PhysicalVolume(gsl::index i = 0) const -> G4VPhysicalVolume*;
+    auto PhysicalVolume(std::string_view name, gsl::index i = 0) const -> G4VPhysicalVolume*;
 
 protected:
     // Make a G4Solid and keep it (for deleting when geometry deconstructs).
     template<std::derived_from<G4VSolid> ASolid>
     auto Make(auto&&... args) -> gsl::not_null<ASolid*>;
-    // Make a G4LogicalVolume and keep it for futher access. Will be deleted when geometry deconstructs.
+    // Make a G4LogicalVolume and keep it for further access. Will be deleted when geometry deconstructs.
     template<std::derived_from<G4LogicalVolume> ALogical>
     auto Make(auto&&... args) -> gsl::not_null<ALogical*>;
-    // Make a G4PhysicalVolume and keep it for futher access. Will be deleted when geometry deconstructs.
+    // Make a G4PhysicalVolume and keep it for further access. Will be deleted when geometry deconstructs.
     template<std::derived_from<G4VPhysicalVolume> APhysical>
     auto Make(auto&&... args) -> gsl::not_null<APhysical*>;
 
 private:
     virtual auto Construct(bool checkOverlaps) -> void = 0;
 
-    auto Ready() const -> bool { return fPhysicalVolumes.size() > 0; }
+    template<muc::ceta_string AMode>
+        requires(AMode == "warning" or AMode == "quiet")
+    auto Ready() const -> bool;
 
 private:
     const DefinitionBase* fMother{};
 
-    std::vector<std::unique_ptr<G4VSolid>> fSolidStore;
-    std::vector<std::unique_ptr<G4LogicalVolume>> fLogicalVolumeStore;
-    std::vector<std::unique_ptr<G4VPhysicalVolume>> fPhysicalVolumeStore;
+    muc::unique_ptrvec<G4VSolid> fSolidStore;
+    muc::unique_ptrvec<G4LogicalVolume> fLogicalVolumeStore;
+    muc::unique_ptrvec<G4VPhysicalVolume> fPhysicalVolumeStore;
 
     std::unordered_map<std::string, std::vector<G4LogicalVolume*>> fLogicalVolumes;
     const std::vector<G4LogicalVolume*>* fFirstLogicalVolumes{};
     std::unordered_map<std::string, std::vector<G4VPhysicalVolume*>> fPhysicalVolumes;
     const std::vector<G4VPhysicalVolume*>* fFirstPhysicalVolumes{};
 
-    std::vector<std::unique_ptr<G4FieldManager>> fFieldStore;
+    muc::unique_ptrvec<G4FieldManager> fFieldStore;
 
     std::unordered_map<std::type_index, std::unique_ptr<DefinitionBase>> fDaughters;
 };

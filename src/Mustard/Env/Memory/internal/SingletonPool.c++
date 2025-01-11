@@ -23,6 +23,9 @@
 
 namespace Mustard::Env::Memory::internal {
 
+SingletonPool::SingletonPool() :
+    PassiveSingleton<SingletonPool>{this} {}
+
 SingletonPool::~SingletonPool() {
     for ([[maybe_unused]] auto&& [_, instanceInfo] : std::as_const(fInstanceMap)) {
         [[maybe_unused]] auto&& [instance, __, ___]{instanceInfo};
@@ -37,7 +40,7 @@ SingletonPool::~SingletonPool() {
     for (auto&& [type, instanceInfo] : fInstanceMap) {
         auto&& [instance, index, base]{instanceInfo};
         if (instance.expired()) {
-            throw std::logic_error{PrettyException(fmt::format("Instance pointer of {} expired", type.name()))};
+            Throw<std::logic_error>(fmt::format("Instance pointer of {} expired", muc::try_demangle(type.name())));
         }
         if (*instance.lock() != nullptr) {
             undeletedListWithID.emplace_back(index, base);

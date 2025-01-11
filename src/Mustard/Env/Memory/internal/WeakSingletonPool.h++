@@ -22,6 +22,8 @@
 #include "Mustard/Utility/NonMoveableBase.h++"
 #include "Mustard/Utility/PrettyLog.h++"
 
+#include "muc/utility"
+
 #include "gsl/gsl"
 
 #include "fmt/format.h"
@@ -42,6 +44,10 @@ public:
     WeakSingletonPool();
     ~WeakSingletonPool();
 
+    static auto Instantiated() -> bool { return fgInstantiated; }
+    static auto Available() -> bool { return fgInstance != nullptr; }
+    static auto Expired() -> bool { return fgExpired; }
+
     static auto Instance() -> WeakSingletonPool&;
 
     template<WeakSingletonified AWeakSingleton>
@@ -55,6 +61,8 @@ private:
     std::unordered_map<std::type_index, const std::weak_ptr<void*>> fInstanceMap;
 
     static WeakSingletonPool* fgInstance;
+    static bool fgInstantiated;
+    static bool fgExpired;
 };
 
 } // namespace Mustard::Env::Memory::internal
