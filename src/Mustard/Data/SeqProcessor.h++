@@ -18,8 +18,11 @@
 
 #pragma once
 
+#include "Mustard/Data/AsyncReader.h++"
 #include "Mustard/Data/RDFEventSplit.h++"
 #include "Mustard/Data/TakeFrom.h++"
+#include "Mustard/Data/Tuple.h++"
+#include "Mustard/Data/TupleModel.h++"
 #include "Mustard/Data/internal/ProcessorBase.h++"
 #include "Mustard/Extension/gslx/index_sequence.h++"
 #include "Mustard/Utility/PrettyLog.h++"
@@ -31,11 +34,12 @@
 
 #include "gsl/gsl"
 
-#include "fmt/format.h"
+#include "fmt/core.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <concepts>
 #include <functional>
 #include <future>
 #include <limits>
@@ -51,7 +55,7 @@
 namespace Mustard::Data {
 
 /// @brief A sequential data processor.
-class SeqProcessor : public internal::ProcessorBase<unsigned> {
+class SeqProcessor : public internal::ProcessorBase<gsl::index> {
 public:
     SeqProcessor();
 
@@ -62,25 +66,30 @@ public:
     auto Process(ROOT::RDF::RNode rdf,
                  std::invocable<std::shared_ptr<Tuple<Ts...>>> auto&& F) -> Index;
 
-    template<TupleModelizable... Ts>
-    auto Process(ROOT::RDF::RNode rdf, std::string eventIDBranchName,
+    template<TupleModelizable... Ts, std::integral AEventIDType>
+    auto Process(ROOT::RDF::RNode rdf, AEventIDType, std::string eventIDBranchName,
                  std::invocable<muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
-    template<TupleModelizable... Ts>
-    auto Process(ROOT::RDF::RNode rdf, const std::vector<Index>& eventSplit,
+    template<TupleModelizable... Ts, std::integral AEventIDType>
+    auto Process(ROOT::RDF::RNode rdf, AEventIDType, std::vector<gsl::index> eventSplit,
                  std::invocable<muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
 
-    template<muc::instantiated_from<TupleModel>... Ts>
+    template<muc::instantiated_from<TupleModel>... Ts, std::integral AEventIDType>
     auto Process(std::array<ROOT::RDF::RNode, sizeof...(Ts)> rdf,
-                 std::string eventIDBranchName,
+                 AEventIDType, std::string eventIDBranchName,
                  std::invocable<muc::shared_ptrvec<Tuple<Ts>>...> auto&& F) -> Index;
-    template<muc::instantiated_from<TupleModel>... Ts>
+    template<muc::instantiated_from<TupleModel>... Ts, std::integral AEventIDType>
     auto Process(std::array<ROOT::RDF::RNode, sizeof...(Ts)> rdf,
-                 std::vector<std::string> eventIDBranchName,
+                 AEventIDType, std::vector<std::string> eventIDBranchName,
                  std::invocable<muc::shared_ptrvec<Tuple<Ts>>...> auto&& F) -> Index;
-    template<muc::instantiated_from<TupleModel>... Ts>
+    template<muc::instantiated_from<TupleModel>... Ts, std::integral AEventIDType>
     auto Process(std::array<ROOT::RDF::RNode, sizeof...(Ts)> rdf,
-                 const std::vector<std::array<RDFEntryRange, sizeof...(Ts)>>& eventSplit,
+                 AEventIDType, const std::vector<std::array<RDFEntryRange, sizeof...(Ts)>>& eventSplit,
                  std::invocable<muc::shared_ptrvec<Tuple<Ts>>...> auto&& F) -> Index;
+
+private:
+    template<typename AData>
+    auto ProcessImpl(AsyncReader<AData>& asyncReader, Index n,
+                     std::invocable<typename AData::value_type> auto&& F) -> Index;
 
 private:
     auto LoopBeginAction(Index nTotal) -> void;

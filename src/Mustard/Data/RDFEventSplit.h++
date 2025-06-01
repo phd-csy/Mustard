@@ -46,20 +46,20 @@
 
 namespace Mustard::Data {
 
-template<std::integral T = int>
+template<std::integral T>
 auto RDFEventSplit(ROOT::RDF::RNode rdf,
-                   std::string eventIDColumnName) -> std::vector<unsigned>;
+                   std::string eventIDColumnName) -> std::vector<gsl::index>;
 
 struct RDFEntryRange {
-    unsigned first;
-    unsigned last;
+    gsl::index first;
+    gsl::index last;
 };
 
-template<std::integral T = int, std::size_t N>
+template<std::integral T, std::size_t N>
 auto RDFEventSplit(std::array<ROOT::RDF::RNode, N> rdf,
                    const std::string& eventIDColumnName) -> std::vector<std::array<RDFEntryRange, N>>;
 
-template<std::integral T = int, std::size_t N>
+template<std::integral T, std::size_t N>
 auto RDFEventSplit(std::array<ROOT::RDF::RNode, N> rdf,
                    const std::array<std::string, N>& eventIDColumnName) -> std::vector<std::array<RDFEntryRange, N>>;
 

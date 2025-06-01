@@ -19,6 +19,12 @@
 namespace Mustard::Data::internal {
 
 template<typename ADerived, internal::UniqueStdTuple AStdTuple>
+const std::vector<std::string> ModelBase<ADerived, AStdTuple>::fNameVector{
+    []<gsl::index... Is>(gslx::index_sequence<Is...>) -> std::vector<std::string> {
+        return {std::tuple_element_t<Is, typename ModelBase<ADerived, AStdTuple>::StdTuple>::Name().s()...};
+    }(gslx::make_index_sequence<ModelBase<ADerived, AStdTuple>::Size()>{})};
+
+template<typename ADerived, internal::UniqueStdTuple AStdTuple>
 template<muc::ceta_string AName, gsl::index I>
 consteval auto ModelBase<ADerived, AStdTuple>::IndexImpl() -> gsl::index {
     if constexpr (I == Size()) {

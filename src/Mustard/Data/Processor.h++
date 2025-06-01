@@ -18,8 +18,11 @@
 
 #pragma once
 
+#include "Mustard/Data/AsyncReader.h++"
 #include "Mustard/Data/RDFEventSplit.h++"
 #include "Mustard/Data/TakeFrom.h++"
+#include "Mustard/Data/Tuple.h++"
+#include "Mustard/Data/TupleModel.h++"
 #include "Mustard/Data/internal/ProcessorBase.h++"
 #include "Mustard/Env/MPIEnv.h++"
 #include "Mustard/Extension/MPIX/Execution/Executor.h++"
@@ -36,6 +39,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <functional>
 #include <future>
 #include <memory>
@@ -49,7 +53,7 @@ namespace Mustard::Data {
 
 /// @brief A distributed data processor.
 /// @tparam AExecutor Underlying MPI executor type.
-template<muc::instantiated_from<MPIX::Executor> AExecutor = MPIX::Executor<unsigned>>
+template<muc::instantiated_from<MPIX::Executor> AExecutor = MPIX::Executor<gsl::index>>
 class Processor : public internal::ProcessorBase<typename AExecutor::Index> {
 private:
     using Base = internal::ProcessorBase<typename AExecutor::Index>;
@@ -62,17 +66,21 @@ public:
     auto Process(ROOT::RDF::RNode rdf,
                  std::invocable<bool, std::shared_ptr<Tuple<Ts...>>> auto&& F) -> Index;
 
-    template<TupleModelizable... Ts>
-    auto Process(ROOT::RDF::RNode rdf, std::string eventIDBranchName,
+    template<TupleModelizable... Ts, std::integral AEventIDType>
+    auto Process(ROOT::RDF::RNode rdf, AEventIDType, std::string eventIDBranchName,
                  std::invocable<bool, muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
-    template<TupleModelizable... Ts>
-    auto Process(ROOT::RDF::RNode rdf, const std::vector<unsigned>& eventSplit,
+    template<TupleModelizable... Ts, std::integral AEventIDType>
+    auto Process(ROOT::RDF::RNode rdf, AEventIDType, std::vector<gsl::index> eventSplit,
                  std::invocable<bool, muc::shared_ptrvec<Tuple<Ts...>>> auto&& F) -> Index;
 
     auto Executor() const -> const auto& { return fExecutor; }
     auto Executor() -> auto& { return fExecutor; }
 
 private:
+    template<typename AData>
+    auto ProcessImpl(AsyncReader<AData>& asyncReader, Index n, std::string_view what,
+                     std::invocable<bool, typename AData::value_type> auto&& F) -> Index;
+
     static auto ByPassOccurrenceCheck(Index n, std::string_view what) -> bool;
 
 private:
